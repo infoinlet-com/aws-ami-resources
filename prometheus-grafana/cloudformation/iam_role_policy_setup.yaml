@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "IAM Role and Instance Profile for Prometheus EC2 Service Discovery - AWS Marketplace"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Configuration"
+        Parameters:
+          - RoleName
+          - InstanceProfileName
+    ParameterLabels:
+      RoleName:
+        default: "IAM Role Name"
+      InstanceProfileName:
+        default: "Instance Profile Name"
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: "PrometheusEC2DiscoveryRole"
+    Description: "Name for the IAM role that will be created"
+    AllowedPattern: "^[a-zA-Z0-9+=,.@_-]+$"
+    ConstraintDescription: "Must be a valid IAM role name"
+
+  InstanceProfileName:
+    Type: String
+    Default: "PrometheusEC2DiscoveryInstanceProfile"
+    Description: "Name for the instance profile that will be created"
+    AllowedPattern: "^[a-zA-Z0-9+=,.@_-]+$"
+    ConstraintDescription: "Must be a valid instance profile name"
+
+Resources:
+  PrometheusEC2DiscoveryRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Description: "IAM Role for Prometheus to discover EC2 instances for monitoring"
+      Tags:
+        - Key: "Purpose"
+          Value: "Prometheus EC2 Discovery"
+        - Key: "CreatedBy"
+          Value: "AWS Marketplace CloudFormation Template"
+
+  PrometheusEC2DiscoveryPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "PrometheusEC2DiscoveryPolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AllowEC2Discovery"
+            Effect: Allow
+            Action:
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeRegions"
+            Resource: "*"
+      Roles:
+        - !Ref PrometheusEC2DiscoveryRole
+
+  PrometheusEC2DiscoveryInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName: !Ref InstanceProfileName
+      Roles:
+        - !Ref PrometheusEC2DiscoveryRole
+
+Outputs:
+  IAMRoleArn:
+    Description: "ARN of the IAM Role for Prometheus EC2 Discovery"
+    Value: !GetAtt PrometheusEC2DiscoveryRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PrometheusIAMRoleArn"
+
+  IAMRoleName:
+    Description: "Name of the IAM Role for Prometheus EC2 Discovery"
+    Value: !Ref PrometheusEC2DiscoveryRole
+    Export:
+      Name: !Sub "${AWS::StackName}-PrometheusIAMRoleName"
+
+  InstanceProfileArn:
+    Description: "ARN of the Instance Profile for Prometheus EC2 Discovery"
+    Value: !GetAtt PrometheusEC2DiscoveryInstanceProfile.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PrometheusInstanceProfileArn"
+
+  InstanceProfileName:
+    Description: "Name of the Instance Profile for Prometheus EC2 Discovery"
+    Value: !Ref PrometheusEC2DiscoveryInstanceProfile
+    Export:
+      Name: !Sub "${AWS::StackName}-PrometheusInstanceProfileName"
+
+  UsageInstructions:
+    Description: "Instructions for using this IAM role with your Prometheus instances"
+    Value: !Sub |
+      To use this IAM role with your Prometheus EC2 instances:
+      1. Launch your Prometheus EC2 instance from the AWS Marketplace AMI
+      2. Attach the Instance Profile: ${InstanceProfileName}
+      3. Or use the IAM Role ARN: ${PrometheusEC2DiscoveryRole.Arn}
+      
+      For existing instances attach via AWS Console:
+      EC2 → Instance → Actions → Security → Modify IAM Role
